@@ -249,7 +249,6 @@ function ContactForm() {
       setStatus("sending");
 
       try {
-        // Menggunakan Web3Forms (gratis, tidak perlu backend)
         const response = await fetch("https://api.web3forms.com/submit", {
           method: "POST",
           headers: {
@@ -257,7 +256,7 @@ function ContactForm() {
             Accept: "application/json",
           },
           body: JSON.stringify({
-            access_key: "YOUR_ACCESS_KEY", // Ganti dengan key dari web3forms.com
+            access_key: "f1078dd9-b95f-48f2-9abb-2d3c7317c9de",
             subject: "New Contact Form Submission - Yazaka Portfolio",
             from_name: formData.name,
             name: formData.name,
@@ -272,7 +271,6 @@ function ContactForm() {
         if (data.success) {
           setStatus("success");
           setFormData({ name: "", email: "", message: "" });
-          // Reset status setelah 5 detik
           setTimeout(() => setStatus("idle"), 5000);
         } else {
           throw new Error(data.message);
@@ -285,7 +283,6 @@ function ContactForm() {
     [formData]
   );
 
-  // Notifikasi sukses
   if (status === "success") {
     return (
       <m.div
