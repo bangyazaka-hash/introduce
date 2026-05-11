@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState, useCallback } from "react";
 import {
   ArrowRight,
   Mail,
@@ -12,6 +13,8 @@ import {
   ExternalLink,
   Send,
   LayoutGrid,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 
 import {
@@ -24,7 +27,6 @@ import {
 } from "framer-motion";
 
 // ── ANIMATION ───────────────────────────────────────────────
-// FIX: explicit Transition type prevents TS mismatch on `transition` inside variants
 const defaultTransition: Transition = {
   duration: 0.45,
   ease: "easeOut",
@@ -48,7 +50,6 @@ const staggerContainer: Variants = {
   },
 };
 
-// ── PERFORMANCE: shared viewport options (avoids re-creating objects) ──
 const VIEWPORT = { once: true, margin: "-40px" } as const;
 
 // ── DATA ────────────────────────────────────────────────────
@@ -106,7 +107,7 @@ const projects = [
   },
 ];
 
-// ── SKILL CARD (extracted to prevent inline re-renders) ──────
+// ── SKILL CARD ──────────────────────────────────────────────
 function SkillCard({
   icon,
   name,
@@ -125,9 +126,7 @@ function SkillCard({
       initial={{ opacity: 0, y: 10 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={VIEWPORT}
-      // FIX: transition defined here, not inside variants, avoids type conflicts
       transition={{ duration: 0.35, ease: "easeOut" }}
-      // PERF: translateZ promotes to its own compositor layer
       style={{ transform: "translateZ(0)" }}
       className="group bg-[#161B22] border border-white/[0.08]
         hover:border-[#6366F1]/40 rounded-2xl p-6 transition-colors"
@@ -150,7 +149,6 @@ function SkillCard({
           whileInView={{ scaleX: reduceMotion ? 1 : level / 100 }}
           viewport={VIEWPORT}
           transition={{ duration: 0.7, ease: "easeOut" }}
-          // PERF: explicit will-change so browser pre-allocates compositor layer
           style={{ willChange: "transform" }}
         />
       </div>
@@ -158,7 +156,7 @@ function SkillCard({
   );
 }
 
-// ── PROJECT CARD ─────────────────────────────────────────────
+// ── PROJECT CARD ────────────────────────────────────────────
 function ProjectCard({
   label,
   tags,
@@ -182,7 +180,6 @@ function ProjectCard({
           src={image}
           alt={title}
           fill
-          // PERF: eager-load only first card; rest lazy
           loading={label === "Live" ? "eager" : "lazy"}
           className="object-cover object-top transition-transform duration-300
             group-hover:scale-[1.02]"
@@ -230,15 +227,168 @@ function ProjectCard({
   );
 }
 
+// ── CONTACT FORM COMPONENT ─────────────────────────────────
+function ContactForm() {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    message: "",
+  });
+  const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+
+      if (!formData.name || !formData.email || !formData.message) return;
+
+      setStatus("sending");
+
+      try {
+        // Menggunakan Web3Forms (gratis, tidak perlu backend)
+        const response = await fetch("https://api.web3forms.com/submit", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            access_key: "YOUR_ACCESS_KEY", // Ganti dengan key dari web3forms.com
+            subject: "New Contact Form Submission - Yazaka Portfolio",
+            from_name: formData.name,
+            name: formData.name,
+            email: formData.email,
+            message: formData.message,
+            to: "arkaputrayazaka@gmail.com",
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          setStatus("success");
+          setFormData({ name: "", email: "", message: "" });
+          // Reset status setelah 5 detik
+          setTimeout(() => setStatus("idle"), 5000);
+        } else {
+          throw new Error(data.message);
+        }
+      } catch (error) {
+        setStatus("error");
+        setTimeout(() => setStatus("idle"), 5000);
+      }
+    },
+    [formData]
+  );
+
+  // Notifikasi sukses
+  if (status === "success") {
+    return (
+      <m.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="flex flex-col items-center justify-center h-full min-h-[300px] gap-4"
+      >
+        <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center">
+          <CheckCircle2 size={32} className="text-green-400" />
+        </div>
+        <h3 className="text-xl font-semibold text-white">Pesan Terkirim!</h3>
+        <p className="text-[#B1BAC4] text-center text-sm">
+          Terima kasih telah menghubungi saya. Saya akan membalas email Anda secepatnya.
+        </p>
+        <button
+          onClick={() => setStatus("idle")}
+          className="mt-2 text-[#6366F1] text-sm hover:underline"
+        >
+          Kirim pesan lain
+        </button>
+      </m.div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <input
+        type="text"
+        name="name"
+        value={formData.name}
+        onChange={handleChange}
+        placeholder="Nama lengkap"
+        required
+        className="bg-[#21262D] border border-white/[0.08]
+        focus:border-[#6366F1] text-white px-4 py-3
+        rounded-xl text-sm outline-none transition-colors"
+      />
+      <input
+        type="email"
+        name="email"
+        value={formData.email}
+        onChange={handleChange}
+        placeholder="Email"
+        required
+        className="bg-[#21262D] border border-white/[0.08]
+        focus:border-[#6366F1] text-white px-4 py-3
+        rounded-xl text-sm outline-none transition-colors"
+      />
+      <textarea
+        name="message"
+        value={formData.message}
+        onChange={handleChange}
+        rows={4}
+        placeholder="Ceritakan project kamu..."
+        required
+        className="bg-[#21262D] border border-white/[0.08]
+        focus:border-[#6366F1] text-white px-4 py-3
+        rounded-xl text-sm outline-none transition-colors resize-none"
+      />
+      <button
+        type="submit"
+        disabled={status === "sending"}
+        className="bg-[#6366F1] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed
+        text-white font-semibold px-6 py-3 rounded-xl flex items-center gap-2 
+        self-start transition-opacity"
+      >
+        {status === "sending" ? (
+          <>
+            <Loader2 size={16} className="animate-spin" />
+            Mengirim...
+          </>
+        ) : (
+          <>
+            <Send size={16} />
+            Kirim Pesan
+          </>
+        )}
+      </button>
+      {status === "error" && (
+        <p className="text-red-400 text-xs">
+          Gagal mengirim pesan. Silakan coba lagi atau hubungi langsung via email.
+        </p>
+      )}
+    </form>
+  );
+}
+
 // ── MAIN ────────────────────────────────────────────────────
 export default function HomePage() {
   const shouldReduceMotion = useReducedMotion();
 
+  // Smooth scroll handler
+  const scrollToSection = useCallback((id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
   return (
     <LazyMotion features={domAnimation} strict>
       <main className="bg-[#0D1117] text-[#E6EDF3] min-h-screen overflow-x-hidden font-sans">
-
-        {/* Ambient Glow — CSS only, zero JS cost */}
+        {/* Ambient Glow */}
         <div
           aria-hidden
           className="fixed top-[-100px] left-[-100px] w-[320px] h-[320px]
@@ -250,7 +400,7 @@ export default function HomePage() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
-          className="sticky top-0 z-50 border-b border-white/[0.08] bg-[#0D1117]/95"
+          className="sticky top-0 z-50 border-b border-white/[0.08] bg-[#0D1117]/95 backdrop-blur-sm"
         >
           <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
             <span className="text-xl font-bold tracking-wide bg-gradient-to-r from-white to-[#6366F1] bg-clip-text text-transparent">
@@ -259,21 +409,21 @@ export default function HomePage() {
 
             <nav className="hidden md:flex items-center gap-8">
               {["About", "Projects", "Contact"].map((item) => (
-                <a
+                <button
                   key={item}
-                  href={`#${item.toLowerCase()}`}
+                  onClick={() => scrollToSection(item.toLowerCase())}
                   className="text-[#7D8590] text-sm hover:text-white transition-colors"
                 >
                   {item}
-                </a>
+                </button>
               ))}
-              <a
-                href="#contact"
+              <button
+                onClick={() => scrollToSection("contact")}
                 className="bg-[#6366F1] hover:bg-[#5458ee] text-white text-sm
                 font-semibold px-4 py-2 rounded-lg transition-colors"
               >
                 Hire Me
-              </a>
+              </button>
             </nav>
           </div>
         </m.header>
@@ -287,7 +437,6 @@ export default function HomePage() {
               border border-[#6366F1]/30 px-4 py-1.5 rounded-full
               text-xs text-[#A5B4FC] mb-6"
             >
-              {/* PERF: CSS animation instead of framer for simple pulse */}
               <span className="w-1.5 h-1.5 rounded-full bg-[#6366F1] animate-pulse" />
               Tersedia untuk project baru
             </m.div>
@@ -312,18 +461,21 @@ export default function HomePage() {
             </m.p>
 
             <m.div variants={fadeUp} className="flex flex-wrap gap-4">
+              {/* FIX: Scroll ke section projects */}
               <button
+                onClick={() => scrollToSection("projects")}
                 className="bg-[#6366F1] hover:opacity-90 text-white font-semibold
-                px-6 py-3 rounded-xl flex items-center gap-2 transition-opacity"
+                px-6 py-3 rounded-xl flex items-center gap-2 transition-opacity cursor-pointer"
               >
                 <LayoutGrid size={18} />
                 View Projects
               </button>
 
               <button
+                onClick={() => scrollToSection("contact")}
                 className="border border-white/10 hover:border-[#6366F1]
                 text-[#B1BAC4] hover:text-white font-medium px-6 py-3
-                rounded-xl flex items-center gap-2 transition-colors"
+                rounded-xl flex items-center gap-2 transition-colors cursor-pointer"
               >
                 <Mail size={18} />
                 Contact Me
@@ -451,41 +603,8 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* FIX: form onSubmit is fine here, no conflict with framer */}
-              <form
-                className="flex flex-col gap-5"
-                onSubmit={(e) => e.preventDefault()}
-              >
-                <input
-                  type="text"
-                  placeholder="Nama lengkap"
-                  className="bg-[#21262D] border border-white/[0.08]
-                  focus:border-[#6366F1] text-white px-4 py-3
-                  rounded-xl text-sm outline-none transition-colors"
-                />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  className="bg-[#21262D] border border-white/[0.08]
-                  focus:border-[#6366F1] text-white px-4 py-3
-                  rounded-xl text-sm outline-none transition-colors"
-                />
-                <textarea
-                  rows={4}
-                  placeholder="Ceritakan project kamu..."
-                  className="bg-[#21262D] border border-white/[0.08]
-                  focus:border-[#6366F1] text-white px-4 py-3
-                  rounded-xl text-sm outline-none transition-colors resize-none"
-                />
-                <button
-                  type="submit"
-                  className="bg-[#6366F1] hover:opacity-90 text-white font-semibold
-                  px-6 py-3 rounded-xl flex items-center gap-2 self-start transition-opacity"
-                >
-                  <Send size={16} />
-                  Kirim Pesan
-                </button>
-              </form>
+              {/* NEW: Contact Form dengan Email Integration */}
+              <ContactForm />
             </m.div>
           </div>
         </section>
