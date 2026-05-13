@@ -99,9 +99,9 @@ const projects = [
   },
   {
     label: null,
-    tags: ["Next.js", "Supabase"],
+    tags: ["Next.js", "Tailwind"],
     title: "Portfolio Builder",
-    desc: "Tool untuk membuat website portfolio profesional tanpa coding.",
+    desc: "Website portfolio profesional.",
     demoUrl: "https://executor-room.vercel.app",
     image: "/executor.png",
   },
