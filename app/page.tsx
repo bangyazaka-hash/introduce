@@ -87,7 +87,7 @@ const projects = [
     title: "E-Commerce Platform",
     desc: "Website toko online modern dengan fitur cart, checkout, dan dashboard admin.",
     demoUrl: "https://veloz-zeta.vercel.app",
-    image: "/veloz.png",
+    image: "/image.png",
   },
   {
     label: "Featured",
